@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Lavish Barber Shop - Loyalty</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   body {
     margin:0;
@@ -16,20 +17,20 @@
     text-align:center;
   }
 
-  h1 { margin-top:30px; font-size:38px; }
-  h3 { margin-bottom:20px; font-weight:300; }
+  h1 { margin-top:40px; font-size:48px; }
+  h3 { margin-bottom:30px; font-weight:300; font-size:28px; }
 
-  .input-group { margin:10px 0; display:flex; flex-direction:column; align-items:center; }
-  input { padding:10px; font-size:16px; border-radius:6px; border:none; width:250px; margin-top:5px; }
+  .input-group { margin:15px 0; display:flex; flex-direction:column; align-items:center; }
+  input { padding:15px; font-size:20px; border-radius:10px; border:none; width:280px; margin-top:5px; }
 
   .progress-container {
     width:90%;
-    max-width:400px;
+    max-width:450px;
     background:#222;
-    border-radius:12px;
+    border-radius:20px;
     overflow:hidden;
-    margin:30px 0;
-    height:30px;
+    margin:40px 0;
+    height:50px;
   }
 
   .progress-bar {
@@ -40,24 +41,46 @@
   }
 
   .progress-text {
-    margin-top:10px;
-    font-size:20px;
+    margin-top:15px;
+    font-size:28px;
     font-weight:bold;
     color:#00ff88;
+    text-shadow:0 0 10px #00ff88;
   }
 
   button {
-    margin-top:20px;
-    padding:12px 25px;
-    font-size:18px;
+    margin-top:30px;
+    padding:18px 35px;
+    font-size:22px;
     background:#00ff88;
     border:none;
-    border-radius:8px;
+    border-radius:12px;
     cursor:pointer;
     font-weight:bold;
+    box-shadow:0 0 15px #00ff88;
   }
 
-  button:hover { background:#00cc66; }
+  button:hover { background:#00cc66; box-shadow:0 0 25px #00cc66; }
+
+  /* Muñequito barbero */
+  #barber {
+    width:180px;
+    height:180px;
+    background-image:url('https://i.ibb.co/HTf0H3V/barber-idle.png'); /* Muñequito en reposo */
+    background-size:contain;
+    background-repeat:no-repeat;
+    margin:20px auto;
+    transition:all 0.5s;
+  }
+
+  .barber-move1 { animation: move1 1s infinite; background-image:url('https://i.ibb.co/HTf0H3V/barber-move1.png'); }
+  .barber-move2 { animation: move2 0.8s infinite; background-image:url('https://i.ibb.co/HTf0H3V/barber-move2.png'); }
+  .barber-celebrate { animation: celebrate 1s infinite; background-image:url('https://i.ibb.co/HTf0H3V/barber-celebrate.png'); }
+
+  @keyframes move1 { 0%,100%{transform:rotate(0deg);} 50%{transform:rotate(10deg);} }
+  @keyframes move2 { 0%,100%{transform:rotate(0deg);} 50%{transform:rotate(-10deg);} }
+  @keyframes celebrate { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-20px);} }
+
 </style>
 </head>
 <body>
@@ -67,17 +90,18 @@
 
 <div id="registerForm">
   <div class="input-group">
-    <label for="name">Name:</label>
+    <label for="name" style="font-size:22px;">Name:</label>
     <input type="text" id="name" placeholder="Enter your name">
   </div>
   <div class="input-group">
-    <label for="phone">Phone Number:</label>
+    <label for="phone" style="font-size:22px;">Phone Number:</label>
     <input type="text" id="phone" placeholder="Enter your phone">
   </div>
   <button onclick="registerClient()">Register</button>
 </div>
 
 <div id="loyalty" style="display:none;">
+  <div id="barber"></div>
   <div class="progress-container">
     <div class="progress-bar" id="progressBar"></div>
   </div>
@@ -87,18 +111,23 @@
 
 <script>
 const maxCuts = 10;
-// Lat/Lng aproximados de la barbería
 const shopLat = 31.8457; // Cambia a tu latitud exacta
 const shopLng = -102.3676; // Cambia a tu longitud exacta
-const allowedDistance = 0.01; // Distancia en grados aprox (~1km)
+const allowedDistance = 0.01; // Aprox 1km
 
-// Registrar cliente
+function updateBarberAnimation(cuts){
+  const barber = document.getElementById('barber');
+  if(cuts==0) barber.className=''; // idle
+  else if(cuts<=4) barber.className='barber-move1';
+  else if(cuts<=9) barber.className='barber-move2';
+  else barber.className='barber-celebrate';
+}
+
 function registerClient(){
   const name = document.getElementById('name').value.trim();
   const phone = document.getElementById('phone').value.trim();
   if(!name || !phone){ alert("Please enter name and phone"); return; }
 
-  // Guardar cliente en localStorage
   const clientKey = 'lavish_' + phone;
   if(!localStorage.getItem(clientKey)){
     localStorage.setItem(clientKey, JSON.stringify({name:name, cuts:0}));
@@ -110,7 +139,6 @@ function registerClient(){
   loadProgress();
 }
 
-// Cargar progreso del cliente actual
 function loadProgress(){
   const clientKey = localStorage.getItem('currentClient');
   if(!clientKey) return;
@@ -118,14 +146,11 @@ function loadProgress(){
   const cuts = data.cuts || 0;
   document.getElementById('progressBar').style.width = (cuts/maxCuts*100)+'%';
   document.getElementById('progressText').innerText = cuts+' / '+maxCuts+' Haircuts';
+  updateBarberAnimation(cuts);
 }
 
-// Registrar corte con GPS
 function registerCut(){
-  if(!navigator.geolocation){
-    alert("Geolocation not supported");
-    return;
-  }
+  if(!navigator.geolocation){ alert("Geolocation not supported"); return; }
 
   navigator.geolocation.getCurrentPosition(position => {
     const lat = position.coords.latitude;
@@ -147,12 +172,10 @@ function registerCut(){
 
     localStorage.setItem(clientKey, JSON.stringify(data));
     loadProgress();
-  }, err => {
-    alert("Could not get your location.");
-  });
+  }, err => { alert("Could not get your location."); });
 }
 
-// Si el cliente ya estaba registrado
+// Mantener cliente registrado al recargar
 window.onload = () => {
   const clientKey = localStorage.getItem('currentClient');
   if(clientKey){
