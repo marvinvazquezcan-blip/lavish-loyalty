@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Lavish Barber Shop - Loyalty Dashboard</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
+<style>
+  body {
+    margin:0;
+    background: #0b0b0b;
+    font-family: 'Segoe UI', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: white;
+  }
+
+  header {
+    margin-top: 30px;
+    text-align: center;
+  }
+
+  header h1 {
+    font-size: 38px;
+    letter-spacing: 2px;
+  }
+
+  .dashboard {
+    width: 90%;
+    max-width: 450px;
+    margin-top: 50px;
+    background: #111;
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 0 25px #00ff88;
+  }
+
+  .progress-bar-container {
+    width: 100%;
+    background: #222;
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 20px 0;
+    height: 30px;
+  }
+
+  .progress-bar {
+    width: 0%;
+    height: 100%;
+    background: #00ff88;
+    transition: width 1s ease;
+  }
+
+  .progress-text {
+    text-align: center;
+    margin-top: 10px;
+    font-weight: bold;
+    font-size: 20px;
+    color: #00ff88;
+    text-shadow: 0 0 8px #00ff88;
+  }
+
+  .recent-cuts {
+    margin-top: 20px;
+  }
+
+  .recent-cuts h3 {
+    font-weight: 300;
+    font-size: 18px;
+    color: #ccc;
+  }
+
+  .recent-cuts ul {
+    list-style: none;
+    padding: 0;
+    margin-top: 10px;
+  }
+
+  .recent-cuts li {
+    background: #222;
+    margin-bottom: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+  }
+
+  button {
+    margin-top: 30px;
+    padding: 14px 28px;
+    font-size: 18px;
+    background: #00ff88;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    box-shadow: 0 0 15px #00ff88;
+    transition: all 0.3s ease;
+  }
+
+  button:hover {
+    background: #00cc66;
+    box-shadow: 0 0 25px #00cc66;
+  }
+
+</style>
+</head>
+<body>
+
+<header>
+  <h1>💈 Lavish Barber Shop</h1>
+  <h3>Loyalty Dashboard</h3>
+</header>
+
+<div class="dashboard">
+  <div class="progress-bar-container">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+  <div class="progress-text" id="progressText">0 / 10 Haircuts</div>
+
+  <div class="recent-cuts">
+    <h3>Recent Haircuts</h3>
+    <ul id="cutsList">
+      <!-- Recent cuts will appear here -->
+    </ul>
+  </div>
+
+  <button onclick="registerHaircut()">Register Haircut</button>
+</div>
+
+<script>
+  // Firebase config
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_AUTH_DOMAIN",
+    projectId: "YOUR_PROJECT_ID"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  // User
+  let userId = localStorage.getItem("lavishUser");
+  if (!userId) {
+    userId = prompt("Enter your phone number:");
+    localStorage.setItem("lavishUser", userId);
+  }
+
+  const maxCuts = 10;
+
+  async function updateDashboard(cutsData) {
+    const cuts = cutsData.cuts || 0;
+    document.getElementById("progressBar").style.width = ((cuts / maxCuts) * 100) + "%";
+    document.getElementById("progressText").innerText = cuts + " / 10 Haircuts";
+
+    const cutsListEl = document.getElementById("cutsList");
+    cutsListEl.innerHTML = "";
+    if (cutsData.history) {
+      cutsData.history.slice().reverse().forEach(dateStr => {
+        const li = document.createElement("li");
+        li.textContent = new Date(dateStr).toLocaleDateString();
+        cutsListEl.appendChild(li);
+      });
+    }
+  }
+
+  async function registerHaircut() {
+    const userRef = db.collection("customers").doc(userId);
+    const doc = await userRef.get();
+    const now = new Date();
+
+    let cutsData = { cuts: 0, history: [] };
+
+    if (doc.exists) {
+      cutsData = doc.data();
+      // Check 5 days minimum
+      const lastDate = new Date(cutsData.history[cutsData.history.length - 1]);
+      const diffDays = (now - lastDate) / (1000*60*60*24);
+      if (cutsData.history.length > 0 && diffDays < 5) {
+        alert("At least 5 days must pass between haircuts.");
+        return;
+      }
+    }
+
+    cutsData.cuts = (cutsData.cuts || 0) + 1;
+    cutsData.history = cutsData.history || [];
+    cutsData.history.push(now.toISOString());
+
+    if (cutsData.cuts >= 10) {
+      alert("🎉 Free haircut unlocked!");
+      cutsData.cuts = 0; // reset
+    }
+
+    await userRef.set(cutsData);
+    updateDashboard(cutsData);
+  }
+
+  async function loadDashboard() {
+    const userRef = db.collection("customers").doc(userId);
+    const doc = await userRef.get();
+    if (doc.exists) {
+      updateDashboard(doc.data());
+    } else {
+      updateDashboard({cuts:0, history:[]});
+    }
+  }
+
+  loadDashboard();
+</script>
+
+</body>
+</html>
